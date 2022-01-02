@@ -2,10 +2,17 @@
 
 Matplotlib 3D animation. Educational code.
 
+
+## Screenshot
+
+![images/solar.png](images/solar.png)
+
+
 ## Requirements
 
 + numpy
 + matplotlib
+
 
 ## Usage
 
@@ -18,3 +25,8 @@ optional arguments:
   -V, --verbose
   -p PRECISION, --precision PRECISION
   -f FPS, --fps FPS
+
+
+# BUGS
+
+Always.
