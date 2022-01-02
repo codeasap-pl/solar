@@ -15,7 +15,7 @@ Matplotlib 3D animation. Educational code.
 
 
 ## Usage
-
+```
 usage: solar.py [-h] [-A] [-S] [-V] [-p PRECISION] [-f FPS]
 
 optional arguments:
@@ -25,7 +25,7 @@ optional arguments:
   -V, --verbose
   -p PRECISION, --precision PRECISION
   -f FPS, --fps FPS
-
+```
 
 # BUGS
 
