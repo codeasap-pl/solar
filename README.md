@@ -1,9 +1,15 @@
 # Solar
 
 Matplotlib 3D animation. Educational code.
+Article: [https://blog.codeasap.pl/posts/theory/oop/1-intro/](https://blog.codeasap.pl/posts/theory/oop/1-intro/)
 
 
-## Screenshot
+## Screenshots
+
+### Simple: points
+![images/points2d.gif](images/points2d.gif)
+
+### 3D Simulation:
 
 ![images/solar.png](images/solar.png)
 
