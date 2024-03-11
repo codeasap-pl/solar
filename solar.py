@@ -7,21 +7,21 @@ RND = np.random.random
 
 
 def xrot(theta):
-    return np.matrix([[1, 0            , 0             ],
+    return np.matrix([[1, 0            , 0             ],    # noqa: E202, E203
                       [0, np.cos(theta), -np.sin(theta)],
                       [0, np.sin(theta),  np.cos(theta)]])
 
 
 def yrot(theta):
     return np.matrix([[np.cos(theta),  0, np.sin(theta)],
-                      [0            ,  1, 0            ],
+                      [0            ,  1, 0            ],    # noqa: E202, E203
                       [-np.sin(theta), 0, np.cos(theta)]])
 
 
 def zrot(theta):
-    return np.matrix([[np.cos(theta), -np.sin(theta), 0 ],
-                      [np.sin(theta),  np.cos(theta), 0 ],
-                      [0            ,  0            , 1 ]])
+    return np.matrix([[np.cos(theta), -np.sin(theta), 0 ],   # noqa: E202, E203
+                      [np.sin(theta),  np.cos(theta), 0 ],   # noqa: E202, E203
+                      [0            ,  0            , 1 ]])  # noqa: E202, E203
 
 
 class Orbit:
@@ -54,6 +54,7 @@ class Planet:
         self.name = name
         self.r = r
         self.orbit = Orbit(0, 0, 0, r, rotation, precision)
+        self.mpl_handle = None
 
     def get_xyz(self, t=0):
         x, y, z = self.orbit.xyz
@@ -90,7 +91,7 @@ class Scene:
 class Sphere:
     def __init__(self, ax, planets, center, radius=1, prec=64, **po):
         self.ax = ax
-        self.planets = {p: None for p in planets}
+        self.planets = planets
         self.center = center
         self.radius = radius
         self.prec = prec
@@ -98,10 +99,10 @@ class Sphere:
 
     def play(self, frame_no, scene, controls, n_frames, **kwargs):
         controls["title"].set_text("Solar, t=%d" % frame_no)
-        for p, handle in self.planets.items():
+        for name, p in self.planets.items():
             x, y, z = p.get_xyz(frame_no)
-            handle.set_data(x, y)
-            handle.set_3d_properties(z)
+            p.mpl_handle.set_data([x, y])
+            p.mpl_handle.set_3d_properties(z)
             if self.po.get("verbose"):
                 print(
                     "t=%03d %12s: %.8f %.8f %.8f" % (
@@ -109,7 +110,10 @@ class Sphere:
                     )
                 )
 
-        return *controls.values(), *self.planets.values()
+        return tuple([
+            *controls.values(),
+            *[p.mpl_handle for p in self.planets.values()]
+        ])
 
     def plot(self):
         a, b, c = self.center
@@ -128,15 +132,12 @@ class Sphere:
         # The SUN.
         self.ax.scatter([0], [0], [0], color="orange", alpha=0.4, linewidth=10)
 
-        # Orbits
-        for planet in self.planets:
+        for name, planet in self.planets.items():
+            # Orbits
             self.ax.plot(*planet.orbit.xyz, alpha=0.2)
-
-        # Planets
-        self.planets.update({
-            p: self.ax.plot(*p.get_xyz(), marker="o", label=p.name)[0]
-            for p in self.planets
-        })
+            # Planets
+            handle = self.ax.plot(*planet.get_xyz(), marker="o", label=name)[0]
+            self.planets[name].mpl_handle = handle
 
     def plot_meridians(self, ax, total, a, b, c, r, prec):
         angle = (np.pi / total)
@@ -165,21 +166,37 @@ if __name__ == "__main__":
     fps = po.fps
 
     # Planet caravan.
-    planets = "Hermes Aphrodite Tellus Ares Zeus Kronos Ouranos Poseidon Hades"
-    planets = planets.split()
-    planets = [
-        Planet(
-            r=(1 / (len(planets) - idx)),
-            rotation=np.random.uniform(-np.pi / 8 , np.pi / 2, 3),
+
+    planets = {
+        "Ἑρμῆς": dict(),
+        "Ἀφροδίτη": dict(),
+        "Γαῖα": dict(),
+        "Ἄρης": dict(),
+        "Ζεύς": dict(),
+        "Κρόνος": dict(),
+        "Οὐρανός": dict(),
+        "Ποσειδῶν": dict(),
+        "Ἅιδης": dict(),
+    }
+
+    # fixed radius: to be removed
+    for idx, _P in enumerate(planets.items(), 1):
+        name, p = _P
+        p["r"] = idx / len(planets)
+
+    planets = {
+        name: Planet(
+            r=p["r"],
+            rotation=np.random.uniform(-np.pi / 8, np.pi / 2, 3),
             precision=precision,
             name=name,
         )
-        for idx, name in enumerate(list(filter(bool, planets)))
-    ]
+        for name, p in planets.items()
+    }
 
     plt.figure(figsize=(16, 9))
     ax = plt.axes(projection="3d")
-    ax.set_box_aspect(aspect = (1, 1, 1))
+    ax.set_box_aspect(aspect=(1, 1, 1))
     ax.axis("on" if po.show_axis else "off")
 
     # SCENE
