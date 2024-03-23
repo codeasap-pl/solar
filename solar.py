@@ -1,33 +1,69 @@
+# Animation
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+# std lib
+import abc
 
 
 RND = np.random.random
 
 
-def xrot(theta):
+def xrot(theta: int | float) -> np.matrix:
+    """Returns rotation matrix for x-axis.
+
+    Arguments:
+    theta       - angle
+    """
     return np.matrix([[1, 0            , 0             ],    # noqa: E202, E203
                       [0, np.cos(theta), -np.sin(theta)],
                       [0, np.sin(theta),  np.cos(theta)]])
 
 
-def yrot(theta):
+def yrot(theta: int | float) -> np.matrix:
+    """Returns rotation matrix for y-axis.
+
+    Arguments:
+    theta       - angle
+    """
     return np.matrix([[np.cos(theta),  0, np.sin(theta)],
                       [0            ,  1, 0            ],    # noqa: E202, E203
                       [-np.sin(theta), 0, np.cos(theta)]])
 
 
-def zrot(theta):
+def zrot(theta: int | float) -> np.matrix:
+    """Returns rotation matrix for z-axis.
+
+    Arguments:
+    theta       - angle
+    """
     return np.matrix([[np.cos(theta), -np.sin(theta), 0 ],   # noqa: E202, E203
                       [np.sin(theta),  np.cos(theta), 0 ],   # noqa: E202, E203
                       [0            ,  0            , 1 ]])  # noqa: E202, E203
 
 
-class Orbit:
-    def __init__(self, a, b, c, r, rotation, prec):
-        h_space = np.zeros(prec)
-        v_space = np.linspace(-np.pi, np.pi, prec)
+class _Shape:
+    ...
+
+
+class Ellipse(_Shape):
+    """TODO: elipse (currently a circle)"""
+
+    def __init__(self,
+                 *,
+                 radius: int | float = 1,
+                 precision: int = 64,
+                 rotation: tuple | list = (0, 0, 0),
+                 center: tuple | list = (0, 0, 0)):
+        """Orbit (circle) initializer:
+
+        TODO: elipse.
+        """
+        r = radius
+        a, b, c = center
+        h_space = np.zeros(precision)
+        v_space = np.linspace(-np.pi, np.pi, precision)
 
         x = r * (np.sin(v_space) * np.cos(h_space)) + a
         y = r * (np.sin(v_space) * np.sin(h_space)) + b
@@ -42,66 +78,96 @@ class Orbit:
         if rz:
             data = zrot(rz) * data
 
-        self.xyz = np.array(data)
+        self._xyz = np.array(data)
+
+    @property
+    def xyz(self) -> np.ndarray:
+        return self._xyz
+
+
+class Orbit(Ellipse):
+    ...
 
 
 class Planet:
     def __init__(self,
-                 r,
-                 rotation,
-                 precision=64,
-                 name=None):
+                 *,
+                 orbit: Orbit | dict,
+                 name: str = "",
+                 symbol: str = ""):
         self.name = name
-        self.r = r
-        self.orbit = Orbit(0, 0, 0, r, rotation, precision)
+        self.symbol = symbol
+        self.orbit = orbit if isinstance(orbit, Orbit) else Orbit(**orbit)
         self.mpl_handle = None
 
-    def get_xyz(self, t=0):
+    def get_xyz(self, t: int = 0) -> tuple:
+        """Position on the orbit in 't' instance/frame of time"""
         x, y, z = self.orbit.xyz
         return (x[t], y[t], z[t])
 
 
-class Scene:
-    def __init__(self, a, b, c, r):
-        self.a = a
-        self.b = b
-        self.c = c
-        self.radius = r
+class _Object(abc.ABC):
+    @abc.abstractmethod
+    def render(self, ax, *args, **kwargs) -> None:
+        ...
 
-        self.fig = plt.gcf()
-        self.ax = self.fig.gca()
 
-    def plot_axes(self):
+class _Scene(_Object):
+    """Scene"""
+
+
+class MainScene(_Scene):
+    """MainScene"""
+
+    def __init__(self,
+                 *,
+                 center: tuple | list = (0, 0, 0),
+                 radius: int | float = 1):
+        self.center = center
+        self.radius = radius
+
+    def render(self, ax, *args, **kwargs) -> None:
+        self._plot_axes(ax)
+
+    def _plot_axes(self, ax):
         """Axis Mundi"""
-        a, b, c, r = [self.a, self.b, self.c, self.radius]
+        a, b, c, r = [*self.center, self.radius]
         n = 100
         zeros = np.zeros(n)
         (x, y, z) = (zeros + a, zeros + b, zeros + c)
         line = np.linspace(-r, r, n)
 
-        self.ax.plot(line + a, y, z, color="r", alpha=0.2)
-        self.ax.plot(x, line + b, z, color="g", alpha=0.2)
-        self.ax.plot(x, y, line + c, color="b", alpha=0.2)
+        ax.plot(line + a, y, z, color="r", alpha=0.2)
+        ax.plot(x, line + b, z, color="g", alpha=0.2)
+        ax.plot(x, y, line + c, color="b", alpha=0.2)
 
-        self.ax.set_xlabel("X", color="r", fontweight="bold")
-        self.ax.set_ylabel("Y", color="g", fontweight="bold")
-        self.ax.set_zlabel("Z", color="b", fontweight="bold")
+        ax.set_xlabel("X", color="r", fontweight="bold")
+        ax.set_ylabel("Y", color="g", fontweight="bold")
+        ax.set_zlabel("Z", color="b", fontweight="bold")
 
 
-class Sphere:
-    def __init__(self, ax, planets, center, radius=1, prec=64, **po):
-        self.ax = ax
+class Sphere(_Object):
+    ...
+
+
+class Universe(Sphere):
+    """As conjectured and proven"""
+
+    def __init__(self, planets, center, radius=1, prec=64, **po):
+        """
+        """
         self.planets = planets
         self.center = center
         self.radius = radius
         self.prec = prec
         self.po = po
 
-    def play(self, frame_no, scene, controls, n_frames, **kwargs):
+    def mpl_play(self, frame_no, scene, controls, n_frames, **kwargs):
+        """Invoked by matplotlib (animation function, frame by frame)"""
         controls["title"].set_text("Solar, t=%d" % frame_no)
         for name, p in self.planets.items():
             x, y, z = p.get_xyz(frame_no)
-            p.mpl_handle.set_data([x, y])
+            p.mpl_handle.set_data([x], [y])
             p.mpl_handle.set_3d_properties(z)
             if self.po.get("verbose"):
                 print(
@@ -115,34 +181,46 @@ class Sphere:
             *[p.mpl_handle for p in self.planets.values()]
         ])
 
-    def plot(self):
+    def render(self, ax, *args, **kwargs) -> None:
         a, b, c = self.center
         r = self.radius
         prec = self.prec
 
+        self._plot_surface(ax, a, b, c, r, prec)
+        self._plot_meridians(ax, 8, a, b, c, r, prec)
+        self._plot_sun(ax, a, b, c)
+        self._plot_planets(ax)
+
+    def _plot_surface(self, ax, a, b, c, r, prec) -> None:
         v = np.linspace(0, 2 * np.pi, prec)
         u = np.linspace(0, np.pi, prec)
         x = np.outer(np.cos(u), np.sin(v)) * r + a
         y = np.outer(np.sin(u), np.sin(v)) * r + b
         z = np.outer(np.ones(np.size(u)), np.cos(v)) * r + c
 
-        self.ax.plot_surface(x, y, z, color="white", alpha=0.05)
-        self.plot_meridians(self.ax, 8, a, b, c, 1, prec)
+        ax.plot_surface(x, y, z, color="white", alpha=0.05)
 
+    def _plot_sun(self, ax, a=0, b=0, c=0):
         # The SUN.
-        self.ax.scatter([0], [0], [0], color="orange", alpha=0.4, linewidth=10)
+        ax.scatter([a], [b], [c], color="orange", alpha=0.4, linewidth=10)
 
+    def _plot_planets(self, ax):
         for name, planet in self.planets.items():
             # Orbits
-            self.ax.plot(*planet.orbit.xyz, alpha=0.2)
+            ax.plot(*planet.orbit.xyz, alpha=0.2)
             # Planets
-            handle = self.ax.plot(*planet.get_xyz(), marker="o", label=name)[0]
+            handle = ax.plot(*planet.get_xyz(), marker="o", label=name)[0]
             self.planets[name].mpl_handle = handle
 
-    def plot_meridians(self, ax, total, a, b, c, r, prec):
+    def _plot_meridians(self, ax, total, a, b, c, r, prec):
         angle = (np.pi / total)
         meridians = [
-            Orbit(a, b, c, r, [0, 0, angle * i], prec)
+            Orbit(
+                center=[a, b, c],
+                radius=r,
+                rotation=[0, 0, angle * i],
+                precision=prec,
+            )
             for i in range(0, total)
         ]
 
@@ -166,30 +244,77 @@ if __name__ == "__main__":
     fps = po.fps
 
     # Planet caravan.
-
     planets = {
-        "Ἑρμῆς": dict(),
-        "Ἀφροδίτη": dict(),
-        "Γαῖα": dict(),
-        "Ἄρης": dict(),
-        "Ζεύς": dict(),
-        "Κρόνος": dict(),
-        "Οὐρανός": dict(),
-        "Ποσειδῶν": dict(),
-        "Ἅιδης": dict(),
+        "Ἑρμῆς": {
+            "symbol": "☿",
+            "orbit": {
+                "radius": 0.387098,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Ἀφροδίτη": {
+            "orbit": {
+                "radius": 0.723332,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Γαῖα": {
+            "orbit": {
+                "radius": 1,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Ἄρης": {
+            "orbit": {
+                "radius": 1.3814,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Ζεύς": {
+            "orbit": {
+                "radius": 5.2038,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Κρόνος": {
+            "orbit": {
+                "radius": 9.5826,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Οὐρανός": {
+            "orbit": {
+                "radius": 19.19126,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Ποσειδῶν": {
+            "orbit": {
+                "radius": 30.07,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
+        "Ἅιδης": {
+            "orbit": {
+                "radius": 39.482,
+                "center": [0, 0, 0],
+                "precision": precision,
+            },
+        },
     }
-
-    # fixed radius: to be removed
-    for idx, _P in enumerate(planets.items(), 1):
-        name, p = _P
-        p["r"] = idx / len(planets)
 
     planets = {
         name: Planet(
-            r=p["r"],
-            rotation=np.random.uniform(-np.pi / 8, np.pi / 2, 3),
-            precision=precision,
-            name=name,
+            # orbit_theta=np.random.uniform(-np.pi / 8, np.pi / 2, 3),
+            **p,
         )
         for name, p in planets.items()
     }
@@ -199,13 +324,23 @@ if __name__ == "__main__":
     ax.set_box_aspect(aspect=(1, 1, 1))
     ax.axis("on" if po.show_axis else "off")
 
-    # SCENE
-    scene = Scene(0, 0, 0, 1)
-    scene.plot_axes()
+    fig_main = plt.gcf()
 
-    # SPHERE
-    sphere = Sphere(scene.ax, planets, [0, 0, 0], 1, precision, **po.__dict__)
-    sphere.plot()
+    # Main SCENE
+    ax_main = fig_main.gca()
+
+    scene_main = MainScene(radius=1, center=[0, 0, 0])
+    scene_main.render(ax_main)
+
+    # Universe
+    universe = Universe(
+        planets=planets,
+        center=[0, 0, 0],
+        radius=42,
+        **po.__dict__,
+    )
+
+    universe.render(ax_main)
 
     controls = dict(
         title=ax.set_title("Solar")
@@ -215,9 +350,9 @@ if __name__ == "__main__":
 
     ani = animation.FuncAnimation(
         plt.gcf(),
-        sphere.play,
+        universe.mpl_play,
         precision,
-        fargs=(scene, controls, n_frames),
+        fargs=(universe, controls, n_frames),
         interval=(1000 / fps),
         blit=True,
     )
